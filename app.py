@@ -8,167 +8,6 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
-# ==========================================
-# AUTO CONFIG THEME (MEMAKSA DARK MODE NATIVE)
-# ==========================================
-st_dir = ".streamlit"
-os.makedirs(st_dir, exist_ok=True) # Perbaikan error [WinError 183]
-config_path = os.path.join(st_dir, "config.toml")
-if not os.path.exists(config_path):
-    with open(config_path, "w") as f:
-        f.write("[theme]\nbase='dark'\nprimaryColor='#00f3ff'\nbackgroundColor='#040814'\nsecondaryBackgroundColor='#0a1931'\ntextColor='#e0f7fa'\n")
-
-# ==========================================
-# UI/UX: INJEKSI TEMA DARK CYBER / FUTURISTIC
-# ==========================================
-st.set_page_config(page_title="Sistem Rekap Detail", layout="wide", initial_sidebar_state="collapsed")
-
-custom_css = """
-<style>
-    /* Global Background & Base */
-    .stApp, .stApp > header {
-        background-color: #040814 !important;
-        background-image: radial-gradient(circle at 50% 0%, #0a1931 0%, #040814 70%) !important;
-        color: #e0f7fa !important;
-        font-family: 'Courier New', Courier, monospace;
-    }
-    
-    /* Typography */
-    h1, h2, h3, h4, h5, h6 {
-        color: #00f3ff !important;
-        text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
-        font-family: 'Trebuchet MS', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-    }
-    
-    p, span, div, label {
-        color: #e0f7fa !important;
-    }
-    label {
-        color: #00f3ff !important; 
-        font-weight: 600 !important;
-    }
-
-    /* =========================================
-       NUKLIR CSS: HANCURKAN BACKGROUND PUTIH
-       ========================================= */
-    /* Target SEMUA elemen di dalam kotak upload */
-    div[data-testid="stFileUploader"] * {
-        background-color: transparent !important;
-    }
-    
-    /* Area Dropzone */
-    div[data-testid="stFileUploadDropzone"] {
-        background-color: rgba(10, 25, 49, 0.8) !important;
-        border: 2px dashed #00f3ff !important;
-        box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
-        border-radius: 10px !important;
-        padding: 20px !important;
-    }
-    
-    /* Kotak File yang ter-upload */
-    div[data-testid="stUploadedFile"] {
-        background-color: rgba(17, 34, 64, 0.9) !important;
-        border: 1px solid #00f3ff !important;
-        border-radius: 5px !important;
-        margin-top: 5px !important;
-    }
-    
-    /* Paksa ikon dan teks di dalam kotak file jadi terang */
-    div[data-testid="stUploadedFile"] * {
-        color: #e0f7fa !important;
-        fill: #e0f7fa !important; 
-    }
-
-    /* Notifikasi Loading / Alert */
-    div[data-testid="stAlert"] {
-        background-color: rgba(10, 25, 49, 0.9) !important;
-        border: 1px solid #00f3ff !important;
-        border-left: 5px solid #00f3ff !important;
-        box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
-    }
-    div[data-testid="stAlert"] * {
-        color: #e0f7fa !important;
-    }
-
-    /* Tombol */
-    div[data-testid="stButton"] > button,
-    div[data-testid="stFileUploadDropzone"] button {
-        background-color: #040814 !important;
-        color: #00f3ff !important;
-        border: 1px solid #00f3ff !important;
-        box-shadow: 0 0 8px rgba(0, 243, 255, 0.4), inset 0 0 5px rgba(0, 243, 255, 0.2);
-        border-radius: 4px;
-        font-weight: bold;
-        text-transform: uppercase;
-        padding: 0.5rem 1rem;
-    }
-    div[data-testid="stButton"] > button:hover,
-    div[data-testid="stFileUploadDropzone"] button:hover {
-        background-color: #00f3ff !important;
-        color: #040814 !important;
-        box-shadow: 0 0 20px rgba(0, 243, 255, 0.8) !important;
-    }
-    div[data-testid="stFileUploadDropzone"] button * {
-        color: inherit !important;
-    }
-</style>
-"""
-st.markdown(custom_css, unsafe_allow_html=True)
-st.markdown("<h1 style='text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 15px; margin-bottom: 30px;'>⚙️ SISTEM REKAP LAPORAN BULANAN (PRODUK)</h1>", unsafe_allow_html=True)
-
-# ==========================================
-# FUNGSI BANTUAN (FORMATTING EXCEL)
-# ==========================================
-def reset_no_column(df):
-    df_copy = df.copy()
-    for col in df_copy.columns:
-        if str(col).strip().lower() == 'no':
-            if 'Kode' in df_copy.columns:
-                df_copy['Kode_Clean'] = df_copy['Kode'].ffill()
-                df_copy[col] = (df_copy['Kode_Clean'] != df_copy['Kode_Clean'].shift()).cumsum()
-                df_copy.drop(columns=['Kode_Clean'], inplace=True)
-            elif 'Kode Barang Jadi' in df_copy.columns:
-                 df_copy['KBJ_Clean'] = df_copy['Kode Barang Jadi'].ffill()
-                 df_copy[col] = (df_copy['KBJ_Clean'] != df_copy['KBJ_Clean'].shift()).cumsum()
-                 df_copy.drop(columns=['KBJ_Clean'], inplace=True)
-            else:
-                 df_copy[col] = range(1, len(df_copy) + 1)
-    return df_copy
-
-def apply_table_formatting_and_totals(ws, start_row, end_row, start_col, headers):
-    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    dark_blue_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-    white_font_bold = Font(bold=True, color="FFFFFF")
-    
-    qty_headers = ["target qty", "qty", "qty target standar (gr)", "qty bb standar (gr)", "qty target", "qty gram"]
-    currency_headers = ["harga", "total", "total harga"]
-    
-    total_row = end_row + 1
-    if end_row >= start_row + 1:
-        cell_tot_label = ws.cell(row=total_row, column=start_col, value="TOTAL")
-        cell_tot_label.font = white_font_bold
-        cell_tot_label.Semua logika backend, perhitungan, pembersihan data, *formatting* Excel, hingga CSS pada `app (5).py` dipertahankan 100% utuh tanpa ada satu baris pun yang diubah[cite: 19]. Perubahan hanya dilakukan di bagian paling bawah (`# UI STREAMLIT`) untuk menambahkan alur **Status Ready**, tombol **PROSES DATA**, dan penyimpanan hasil ke `st.session_state` agar klik tombol unduh tidak memicu proses ulang[cite: 19].
-
-* **Deteksi Perubahan File:** Jika file Master atau Indikator ditambah/diganti, hasil proses sebelumnya di memori otomatis di-reset agar tidak terjadi salah unduh.
-* **Status Ready:** Menampilkan konfirmasi jumlah file Master yang masuk beserta status file Indikator segera setelah unggah selesai.
-* **Tombol Eksekusi Manual (`🚀 PROSES DATA`):** Pengolahan data baru dijalankan setelah tombol ini diklik.
-
-```python
-import streamlit as st
-import pandas as pd
-import io
-import re
-import os
-from openpyxl import Workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
-
-# ==========================================
-# AUTO CONFIG THEME (MEMAKSA DARK MODE NATIVE)
-# ==========================================
 st_dir = ".streamlit"
 os.makedirs(st_dir, exist_ok=True)
 config_path = os.path.join(st_dir, "config.toml")
@@ -176,14 +15,10 @@ if not os.path.exists(config_path):
     with open(config_path, "w") as f:
         f.write("[theme]\nbase='dark'\nprimaryColor='#00f3ff'\nbackgroundColor='#040814'\nsecondaryBackgroundColor='#0a1931'\ntextColor='#e0f7fa'\n")
 
-# ==========================================
-# UI/UX: INJEKSI TEMA DARK CYBER / FUTURISTIC
-# ==========================================
 st.set_page_config(page_title="Sistem Rekap Detail", layout="wide", initial_sidebar_state="collapsed")
 
 custom_css = """
 <style>
-    /* Global Background & Base */
     .stApp, .stApp > header {
         background-color: #040814 !important;
         background-image: radial-gradient(circle at 50% 0%, #0a1931 0%, #040814 70%) !important;
@@ -191,7 +26,6 @@ custom_css = """
         font-family: 'Courier New', Courier, monospace;
     }
     
-    /* Typography */
     h1, h2, h3, h4, h5, h6 {
         color: #00f3ff !important;
         text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
@@ -208,15 +42,10 @@ custom_css = """
         font-weight: 600 !important;
     }
 
-    /* =========================================
-       NUKLIR CSS: HANCURKAN BACKGROUND PUTIH
-       ========================================= */
-    /* Target SEMUA elemen di dalam kotak upload */
     div[data-testid="stFileUploader"] * {
         background-color: transparent !important;
     }
     
-    /* Area Dropzone */
     div[data-testid="stFileUploadDropzone"] {
         background-color: rgba(10, 25, 49, 0.8) !important;
         border: 2px dashed #00f3ff !important;
@@ -225,7 +54,6 @@ custom_css = """
         padding: 20px !important;
     }
     
-    /* Kotak File yang ter-upload */
     div[data-testid="stUploadedFile"] {
         background-color: rgba(17, 34, 64, 0.9) !important;
         border: 1px solid #00f3ff !important;
@@ -233,13 +61,11 @@ custom_css = """
         margin-top: 5px !important;
     }
     
-    /* Paksa ikon dan teks di dalam kotak file jadi terang */
     div[data-testid="stUploadedFile"] * {
         color: #e0f7fa !important;
         fill: #e0f7fa !important; 
     }
 
-    /* Notifikasi Loading / Alert */
     div[data-testid="stAlert"] {
         background-color: rgba(10, 25, 49, 0.9) !important;
         border: 1px solid #00f3ff !important;
@@ -250,7 +76,6 @@ custom_css = """
         color: #e0f7fa !important;
     }
 
-    /* Tombol */
     div[data-testid="stButton"] > button,
     div[data-testid="stFileUploadDropzone"] button {
         background-color: #040814 !important;
@@ -276,9 +101,6 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 st.markdown("<h1 style='text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 15px; margin-bottom: 30px;'>⚙️ SISTEM REKAP LAPORAN BULANAN (PRODUK)</h1>", unsafe_allow_html=True)
 
-# ==========================================
-# FUNGSI BANTUAN (FORMATTING EXCEL)
-# ==========================================
 def reset_no_column(df):
     df_copy = df.copy()
     for col in df_copy.columns:
@@ -353,9 +175,6 @@ def autofit_columns(ws):
         adjusted_width = (max_length + 2)
         ws.column_dimensions[col_letter].width = min(adjusted_width, 55)
 
-# ==========================================
-# FUNGSI BACKEND
-# ==========================================
 def parse_number(val):
     if pd.isna(val): return 0.0
     if isinstance(val, (int, float)): return float(val)
@@ -697,7 +516,6 @@ def generate_excel_report(df_gabungan, df_indikator):
             
         current_start_col_summary += len(summary_headers) + 2 
             
-    # 4. PENULISAN SHEET SUMMARY
     current_start_col = 1
     
     for gudang, sheet_groups in summary_dict.items():
@@ -747,9 +565,6 @@ def generate_excel_report(df_gabungan, df_indikator):
     wb.save(output)
     return output.getvalue()
 
-# ==========================================
-# UI STREAMLIT
-# ==========================================
 st.markdown("<p style='text-align: center; color: #b2ebf2; margin-bottom: 30px;'>⚙️ SISTEM PENGELOLAAN DETAIL PRODUK DATA HASIL PRODUKSI</p>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
